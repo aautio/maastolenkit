@@ -1,11 +1,118 @@
+<!DOCTYPE html>
 <html>
 
 <head>
-    <title>Hello World</title>
+    <title>Maastolenkit</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.11.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.11.0/mapbox-gl.js"></script>
+    <script src="https://unpkg.com/@mapbox/polyline@1.1.1/src/polyline.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
 </head>
 
 <body>
-    <h1>Hello World!</h1>
+    <script type="text/javascript">
+        function showStravaLink() {
+            const stravaLink = document.createElement('a')
+            stravaLink.setAttribute('href', `https://www.strava.com/oauth/authorize?client_id=8333&redirect_uri=${window.location.origin}%2Fauthorized&response_type=code&scope=activity%3Aread_all,activity%3Aread`)
+
+            const img = new Image()
+            img.src = `${window.location.origin}/btn_strava_connectwith_orange.png`
+
+            stravaLink.appendChild(img)
+
+            document.body.appendChild(stravaLink)
+        }
+
+        function showMap(strava_polyline) {
+            const mapContainer = document.createElement('div')
+            mapContainer.setAttribute("id", "map")
+            document.body.appendChild(mapContainer)
+
+            // maastolenkit.pages.dev
+            mapboxgl.accessToken = 'pk.eyJ1IjoiYWF1dGlvIiwiYSI6ImNsYXd6dDd2YTBsODczcHNqbDEybG5jbmQifQ.t7nwqz63gc7ovo1GQG8DBQ'
+            const map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/outdoors-v12',
+                center: [28.66, 64.54],
+                zoom: 4
+            })
+
+            map.on('load', () => {
+                const mapboxFriendlyCoordinates = polyline.decode(strava_polyline).map(([lat, long]) => [long, lat])
+
+                map.addSource('route', {
+                    type: 'geojson',
+                    data: {
+                        type: 'Feature',
+                        properties: {},
+                        geometry: {
+                            type: 'LineString',
+                            coordinates: mapboxFriendlyCoordinates
+                        }
+                    }
+                })
+                map.addLayer({
+                    id: 'route',
+                    type: 'line',
+                    source: 'route',
+                    layout: {
+                        'line-join': 'round',
+                        'line-cap': 'round'
+                    },
+                    paint: {
+                        'line-color': 'hotpink',
+                        'line-width': 8
+                    }
+                })
+                
+                const bounds = mapboxFriendlyCoordinates.reduce(
+                    (bounds, coord) => bounds.extend(coord),
+                    new mapboxgl.LngLatBounds(mapboxFriendlyCoordinates[0], mapboxFriendlyCoordinates[0]))
+
+                map.fitBounds(bounds, {
+                    padding: 80
+                })
+            })
+        }
+
+        if (window.location.pathname === '/authorized') {
+            const search = window.location.search
+
+            // wipe location to prevent dead bookmarks
+            history.replaceState(null, null, '/')
+
+            // Proxy all args to fetch the most recent polyline
+            fetch('/latest-polyline' + search, { method: 'POST' })
+                .then(response => {
+                    if (response.status === 200) {
+                        return response.json().then(({ polyline }) => { showMap(polyline) })
+                    }
+                    else {
+                        throw new Error('Could not fetch polyline')
+                    }
+                })
+                .catch(err => {
+                    console.error(err)
+                    showStravaLink()
+                })
+        }
+        else {
+            showStravaLink()
+        }
+    </script>
 </body>
 
 </html>

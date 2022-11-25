@@ -1,0 +1,13 @@
+{
+    "type": "module",
+    "scripts": {
+        "start": "wrangler pages dev .",
+        "test": "env $(cat .dev.vars) node --test"
+
+    },
+    "devDependencies": {
+        "@cloudflare/workers-types": "^4.20221111.1",
+        "@types/node": "^18.11.9",
+        "wrangler": "^2.4.4"
+    }
+}
